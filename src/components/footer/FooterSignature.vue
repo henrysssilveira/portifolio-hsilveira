@@ -1,0 +1,208 @@
+<script setup>
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { gsap } from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
+
+const signatureRootRef = ref(null)
+const svgRef = ref(null)
+const pathMainRef = ref(null)
+const pathDotRef = ref(null)
+
+let gsapCtx = null
+let removeMouseListener = null
+
+onMounted(() => {
+  const rootEl = signatureRootRef.value
+  const svgEl = svgRef.value
+  if (!rootEl || !svgEl) return
+
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  gsapCtx = gsap.context(() => {
+    const paths = [pathMainRef.value, pathDotRef.value].filter(Boolean)
+
+    if (prefersReducedMotion) {
+      gsap.set(svgEl, { clipPath: 'inset(0 0% 0 0)', opacity: 1 })
+      paths.forEach((p) => {
+        gsap.set(p, { fillOpacity: 1, strokeOpacity: 0 })
+      })
+      return
+    }
+
+    // Detecta automaticamente se os paths possuem preenchimento (fill) ou apenas traço (stroke)
+    // e combina o traçado caligráfico (getTotalLength) com reveal direcional da esquerda para a direita
+    paths.forEach((pathEl) => {
+      const computed = window.getComputedStyle(pathEl)
+      const hasFill = computed.fill && computed.fill !== 'none'
+      const totalLen = typeof pathEl.getTotalLength === 'function' ? pathEl.getTotalLength() : 1200
+
+      pathEl.style.strokeDasharray = `${totalLen}`
+      pathEl.style.strokeDashoffset = `${totalLen}`
+
+      if (hasFill) {
+        gsap.set(pathEl, {
+          fillOpacity: 0,
+          strokeOpacity: 0.95,
+        })
+      }
+    })
+
+    gsap.set(svgEl, {
+      clipPath: 'inset(0 100% 0 0)',
+    })
+
+    const tl = gsap.timeline({
+      scrollTrigger: {
+        trigger: rootEl.closest('footer') || rootEl,
+        start: 'top 78%',
+        toggleActions: 'play none none reverse',
+      },
+    })
+
+    tl.to(
+      svgEl,
+      {
+        clipPath: 'inset(0 0% 0 0)',
+        duration: 2.4,
+        ease: 'power2.inOut',
+      },
+      0,
+    )
+      .to(
+        paths,
+        {
+          strokeDashoffset: 0,
+          duration: 2.3,
+          stagger: 0.25,
+          ease: 'power2.inOut',
+        },
+        0,
+      )
+      .to(
+        paths,
+        {
+          fillOpacity: 1,
+          strokeOpacity: 0.16,
+          duration: 1.2,
+          stagger: 0.2,
+          ease: 'power2.out',
+        },
+        0.95,
+      )
+
+    // Parallax sutil ao scroll
+    gsap.fromTo(
+      rootEl,
+      { yPercent: 6 },
+      {
+        yPercent: -6,
+        ease: 'none',
+        scrollTrigger: {
+          trigger: rootEl.closest('footer') || rootEl,
+          start: 'top bottom',
+          end: 'bottom bottom',
+          scrub: 0.6,
+        },
+      },
+    )
+  }, rootEl)
+
+  // Parallax sutil oposto ao movimento do mouse
+  if (!prefersReducedMotion) {
+    const xTo = gsap.quickTo(svgEl, 'x', { duration: 0.9, ease: 'power3.out' })
+    const yTo = gsap.quickTo(svgEl, 'y', { duration: 0.9, ease: 'power3.out' })
+
+    const onMouseMove = (e) => {
+      const nx = (e.clientX / window.innerWidth) * 2 - 1
+      const ny = (e.clientY / window.innerHeight) * 2 - 1
+      xTo(-nx * 16)
+      yTo(-ny * 10)
+    }
+
+    window.addEventListener('pointermove', onMouseMove, { passive: true })
+    removeMouseListener = () => window.removeEventListener('pointermove', onMouseMove)
+  }
+})
+
+onBeforeUnmount(() => {
+  removeMouseListener?.()
+  gsapCtx?.revert()
+})
+</script>
+
+<template>
+  <div
+    ref="signatureRootRef"
+    class="footer-signature-layer pointer-events-none select-none"
+    aria-hidden="true"
+  >
+    <svg
+      ref="svgRef"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 338.56 171.18"
+      preserveAspectRatio="xMinYMax meet"
+      class="footer-signature-svg block"
+    >
+      <path
+        ref="pathMainRef"
+        class="signature-path"
+        d="M77.07,112c6.63-1,13.3-1.92,19.88-3.21,1.13-.22,2-2,2.87-3.21C107.28,95.39,114.65,85.1,122.2,75a35.55,35.55,0,0,1,6.31-6.31c1.46-1.18,4.07-2.75,5.1-2.19,1.41.76,1.81,3.39,2.9,5.79,2.26-1,5.07-2.1,7.84-3.36a249.28,249.28,0,0,1,58.84-18.53A59.67,59.67,0,0,1,217.08,50c1.33.08,2.55,2.06,3.82,3.16-1.4.76-2.77,2.12-4.2,2.19-15.67.78-30.52,5.37-45,10.71-13.51,5-26.38,11.74-39.52,17.76a5.51,5.51,0,0,0-2.74,3.13c5.09-.36,10.18-.62,15.26-1.1,8.93-.86,17.83-2.14,26.77-2.72,14.11-.91,28.25-2,42.32.65a11.39,11.39,0,0,1,2.91.59c11,5.47,22.32,3.19,33.71,2,25.87-2.65,51.79-3.7,77.74-1.31,3.51.32,6.9,1.87,10.35,2.85,0,.66,0,1.32.05,2a34.27,34.27,0,0,1-5.38.68c-7.48-.18-15-1-22.42-.7-22.42,1-44.81,2.4-67.21,3.7A17.21,17.21,0,0,0,240,94.65c6.14,11.42,3.39,20.83-5.89,28.57a98.13,98.13,0,0,1-12.2,8.64c-18.28,11-38.12,17.88-59,21.93-17.26,3.33-34.57,5-52,2.62-4.13-.56-8.07-2.57-12-3.87-1,3.62-1.52,7.1-2.9,10.19-2,4.51-7,7-10.83,6.12-6.26-1.43-9.87-4.62-9.43-10.37a81.07,81.07,0,0,1,3.89-18.28c1.91-5.93,1.76-7.74-3.46-11-.14-.09-.3-.15-.44-.23-9.59-5.48-10.2-5.37-16.63,3.53-9.12,12.62-18.2,25.28-27.85,38.68,5.43-17.9,15.92-32.18,26.53-48-4.67.36-7.9.53-11.11.87-11.39,1.23-22.77,2.55-34.16,3.75a5.24,5.24,0,0,1-3.38-.6,66.77,66.77,0,0,1-5.43-5.09c1.91-1.64,3.69-4.51,5.75-4.73,10.38-1.12,20.84-1.54,31.26-2.21,7.76-.49,15.52-.89,23.26-1.59,1.27-.11,2.66-1.34,3.59-2.41,18.21-21,36.57-41.79,54.43-63,8.25-9.81,15.11-20.67,17.76-33.61,1.27-6.22-.54-9.45-6.65-9.17-7.4.34-15,1-22,3.23-33.17,10.5-64.48,25-92.5,45.91A33.83,33.83,0,0,0,10.94,63c-3.51,5.3-2.28,8.1,4.1,8.64,5.93.5,12,0,17.94-.17,10.31-.38,20.6-1,30.91-1.29,1,0,2,1.27,2.94,1.94-1.21,1.45-2.14,3.51-3.68,4.19A22.26,22.26,0,0,1,55,78.12c-14.79.38-29.59.65-44.38.66-4.13,0-7.75-1.77-9.59-6-2.24-5.18-.37-9.93,2.89-13.38A132.44,132.44,0,0,1,23,42.12,115.14,115.14,0,0,1,46.1,29.32c20-8.09,40.18-15.59,60.48-22.85,7.6-2.72,15.64-4.31,23.57-6A18,18,0,0,1,139,.64c6.37,2,8.8,7,6.66,14.49a90.63,90.63,0,0,1-6.93,17c-8.43,16-20.46,29.44-32.11,43.1q-15,17.61-30,35.2Zm102.22-2.52c-8.51,2.7-16.9,5.26-25.22,8-15.77,5.27-31.65,10.32-45.83,19.33a30.38,30.38,0,0,0-5.91,5.2c-1.57,1.73-1.39,3.41,1.31,3.93,3.57.68,7.15,1.82,10.73,1.86,24.21.26,48.07-2,71.45-8.91,13.52-4,26.3-9.3,37.67-17.52a39.27,39.27,0,0,0,10.4-11.21,11.48,11.48,0,0,0,.3-9.72c-1.8-3.32-5.56-5.25-10.25-4.51-11,1.75-22.08,2.77-33.06,4.55q-37.17,6-74.25,12.49c-7.8,1.36-15,4-18.58,12.18-1.18,2.71-3.47,4.94-4.65,7.65-.67,1.55-.12,3.62-.12,5.46,14.87-12,31-19.08,48-24.1,11.27-3.32,22.88-5.48,34.36-8,7.59-1.68,15.24-3.09,22.86-4.63l.29,1.28L177.42,108Zm-65.76-5.81.54,2,95.13-14.6c-1.94-.74-2.93-1.45-3.92-1.45-10.3.06-20.65-.32-30.9.49-16.21,1.27-32.33,4.05-48.55,4.77C118.63,95.19,116.37,99.1,113.53,103.69ZM91.26,117l-18.79,4.63C85.59,129.65,84.81,130.38,91.26,117Zm-2.33,28.59-2.23-.14c-1,3.76-2.41,7.47-2.86,11.29-.21,1.8,1.4,3.81,2.18,5.72,1.51-1.77,4.18-3.45,4.3-5.31C90.58,153.34,89.47,149.45,88.93,145.59Z"
+      />
+      <path
+        ref="pathDotRef"
+        class="signature-path"
+        d="M245.91,140.26c-2.82,1.93-4.36,3.73-6.16,4-2.95.53-7.08-3.66-6.05-6.25.81-2.05,4.26-5.11,5.12-4.71C241.26,134.48,243,137.18,245.91,140.26Z"
+      />
+    </svg>
+  </div>
+</template>
+
+<style scoped>
+.footer-signature-layer {
+  position: absolute;
+  left: -2vw;
+  bottom: -3vh;
+  z-index: 0;
+  width: clamp(64vw, 76vw, 1380px);
+  min-width: 62%;
+  min-height: 60%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-start;
+  opacity: 0.085;
+  will-change: transform;
+}
+
+.footer-signature-svg {
+  width: 100%;
+  height: auto;
+  min-height: 60vh;
+  max-height: 82vh;
+  overflow: visible;
+}
+
+.signature-path {
+  fill: var(--token-tag, #418354);
+  stroke: var(--token-support, #79b8ff);
+  stroke-width: 1.15px;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (max-width: 767px) {
+  .footer-signature-layer {
+    width: 92vw;
+    min-width: 85%;
+    min-height: 55%;
+    left: -4vw;
+    bottom: -1vh;
+    opacity: 0.06;
+  }
+
+  .footer-signature-svg {
+    min-height: 44vh;
+  }
+}
+</style>

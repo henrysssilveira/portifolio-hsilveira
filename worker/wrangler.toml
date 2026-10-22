@@ -1,0 +1,20 @@
+name = "portfolio-contact-worker"
+main = "src/index.js"
+compatibility_date = "2025-02-01"
+
+# Variáveis de ambiente públicas (ajuste para o seu domínio e e-mails reais)
+[vars]
+ALLOWED_ORIGIN = "https://hsilveira.com.br"
+TO_EMAIL = "contato@hsilveira.com.br"
+FROM_EMAIL = "Portfolio Henrique Silveira <onboarding@resend.dev>"
+
+# Binding do Cloudflare KV para Rate Limiting por IP (5 envios por hora)
+# Crie com: npx wrangler kv namespace create RATE_LIMIT
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "SUBSTITUA_PELO_ID_DO_KV_PRODUCAO"
+preview_id = "SUBSTITUA_PELO_ID_DO_KV_PREVIEW"
+
+# Segredos (NUNCA comite no código; cadastre via CLI):
+# npx wrangler secret put RESEND_API_KEY
+# npx wrangler secret put TURNSTILE_SECRET   # (opcional)
