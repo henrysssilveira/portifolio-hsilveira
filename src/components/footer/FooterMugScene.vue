@@ -66,8 +66,12 @@ function createSoftRadialTexture(innerColor, outerColor) {
   return tex
 }
 
+function isMobileViewport() {
+  return window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches
+}
+
 function handleWindowPointerMove(e) {
-  if (prefersReducedMotion) return
+  if (prefersReducedMotion || isMobileViewport() || e.pointerType === 'touch') return
   const vw = window.innerWidth || 1
   const vh = window.innerHeight || 1
 
@@ -101,13 +105,14 @@ function handleWindowPointerLeave() {
 }
 
 function handleCanvasPointerDown(e) {
-  if (prefersReducedMotion) return
+  if (prefersReducedMotion || isMobileViewport() || e.pointerType === 'touch') return
   isDraggingCanvas = true
   dragPrevX = e.clientX
 }
 
 function handleCanvasPointerMove(e) {
-  if (!isDraggingCanvas || prefersReducedMotion) return
+  if (!isDraggingCanvas || prefersReducedMotion || isMobileViewport() || e.pointerType === 'touch')
+    return
   const dx = e.clientX - dragPrevX
   dragPrevX = e.clientX
   angularBoostVelocity = Math.max(-4, Math.min(4, angularBoostVelocity + dx * 0.045))
@@ -652,6 +657,14 @@ onBeforeUnmount(() => {
 @media (max-width: 1023px) {
   .footer-mug-stage {
     width: clamp(195px, 27vw, 310px);
+  }
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .footer-mug-stage,
+  .mug-canvas-host {
+    pointer-events: none;
+    cursor: default;
   }
 }
 

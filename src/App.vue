@@ -14,6 +14,7 @@ import FooterSection from './components/footer/FooterSection.vue'
 gsap.registerPlugin(ScrollTrigger)
 
 const isDark = ref(true) // Tema escuro (GitHub Dark) por padrão
+const showScrollArrow = ref(true)
 
 const heroSection = ref(null)
 const codeScreen = ref(null)
@@ -741,8 +742,16 @@ function startBackgroundCoding() {
   }, 28)
 }
 
+function isMobileViewport() {
+  return window.innerWidth < 768 || window.matchMedia('(pointer: coarse)').matches
+}
+
+function handleWindowScroll() {
+  showScrollArrow.value = window.scrollY <= 5
+}
+
 function handleMouseMove(event) {
-  if (!heroSection.value) return
+  if (!heroSection.value || isMobileViewport()) return
   const rect = heroSection.value.getBoundingClientRect()
   const relX = ((event.clientX - rect.left) / rect.width) * 100
   const relY = ((event.clientY - rect.top) / rect.height) * 100
@@ -848,8 +857,9 @@ function initThreeNotebook() {
   shadowPlane.receiveShadow = true
   threeScene.add(shadowPlane)
 
-  // Controle de rotação por clique e arraste sem conflitar com o scroll
+  // Controle de rotação por clique e arraste sem conflitar com o scroll (desativado no mobile)
   threeControls = new OrbitControls(threeCamera, threeRenderer.domElement)
+  threeControls.enabled = !isMobileViewport()
   threeControls.enableDamping = true
   threeControls.dampingFactor = 0.06
   threeControls.enableZoom = false
@@ -935,6 +945,15 @@ function handleThreeResize() {
   threeCamera.aspect = width / height
   threeCamera.updateProjectionMatrix()
   threeRenderer.setSize(width, height)
+
+  const mobile = isMobileViewport()
+  if (threeControls) {
+    threeControls.enabled = !mobile
+  }
+  if (mobile) {
+    mouseTargetRot.x = 0
+    mouseTargetRot.y = 0
+  }
 }
 
 function disposeThreeResources() {
@@ -980,6 +999,9 @@ function disposeThreeResources() {
 }
 
 onMounted(() => {
+  handleWindowScroll()
+  window.addEventListener('scroll', handleWindowScroll, { passive: true })
+
   runDecodeAnimation()
   startBackgroundCoding()
   initThreeNotebook()
@@ -1443,6 +1465,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleWindowScroll)
   decodeTween?.kill()
   if (codingInterval) clearInterval(codingInterval)
   scrollTl?.scrollTrigger?.kill()
@@ -1553,6 +1576,27 @@ onBeforeUnmount(() => {
               class="terminal-cursor ml-1 inline-block h-[1.05em] w-[0.68ch] align-middle"
             ></span>
           </h2>
+        </div>
+
+        <!-- SETA PARA BAIXO CENTRALIZADA NA PARTE INFERIOR DO HERO INICIAL (DESAPARECE ASSIM QUE ROLAR) -->
+        <div
+          aria-hidden="true"
+          class="hero-scroll-arrow pointer-events-none absolute bottom-7 left-1/2 z-20 -translate-x-1/2 transition-all duration-300 sm:bottom-9"
+          :class="showScrollArrow ? 'translate-y-0 opacity-75' : 'translate-y-2 opacity-0'"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="hero-scroll-arrow-icon h-5 w-5 sm:h-6 sm:w-6"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path d="M12 5v14" />
+            <path d="m19 12-7 7-7-7" />
+          </svg>
         </div>
 
         <!-- PARTE 2: PALAVRAS CAINDO DO TOPO E PREENCHENDO A TELA ("e por onde seu projeto começa?") -->
@@ -1970,6 +2014,28 @@ onBeforeUnmount(() => {
 
 .three-canvas-container {
   touch-action: pan-y;
+}
+
+@media (max-width: 767px), (pointer: coarse) {
+  .three-canvas-container {
+    pointer-events: none;
+    cursor: default;
+  }
+}
+
+.hero-scroll-arrow-icon {
+  color: var(--editor-fg);
+  animation: hero-arrow-float 1.8s ease-in-out infinite;
+}
+
+@keyframes hero-arrow-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(5px);
+  }
 }
 
 .markdown-editor-panel {
