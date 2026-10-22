@@ -3,8 +3,11 @@ const MAX_PAYLOAD_BYTES = 16 * 1024 // 16 KB
 const RATE_LIMIT_MAX_REQUESTS = 5
 const RATE_LIMIT_WINDOW_SECONDS = 3600 // 1 hora
 
-function resolveCorsOrigin(requestOrigin, allowedOriginEnv) {
-  if (!requestOrigin) return allowedOriginEnv || ''
+function resolveCorsOrigin(requestOrigin, allowedOriginEnv, requestUrlOrigin) {
+  if (!requestOrigin) return allowedOriginEnv || requestUrlOrigin || ''
+  if (requestUrlOrigin && requestOrigin === requestUrlOrigin) {
+    return requestOrigin
+  }
   if (/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/i.test(requestOrigin)) {
     return requestOrigin
   }
@@ -16,12 +19,13 @@ function resolveCorsOrigin(requestOrigin, allowedOriginEnv) {
   if (allowedList.includes(requestOrigin)) {
     return requestOrigin
   }
-  return allowedList[0] || ''
+  return allowedList[0] || requestUrlOrigin || ''
 }
 
 function buildCorsHeaders(request, env) {
   const originHeader = request.headers.get('Origin') || ''
-  const allowedOrigin = resolveCorsOrigin(originHeader, env.ALLOWED_ORIGIN)
+  const requestUrlOrigin = new URL(request.url).origin
+  const allowedOrigin = resolveCorsOrigin(originHeader, env.ALLOWED_ORIGIN, requestUrlOrigin)
 
   const headers = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -123,6 +127,9 @@ export default {
     }
 
     if (url.pathname !== '/contact') {
+      if (env.ASSETS && typeof env.ASSETS.fetch === 'function') {
+        return env.ASSETS.fetch(request)
+      }
       return jsonResponse({ ok: false, error: 'Rota não encontrada.' }, 404, corsHeaders)
     }
 
@@ -333,5 +340,16 @@ export default {
         corsHeaders,
       )
     }
+  },
+
+  // Handler para Cloudflare Email Routing (caso um endereço do domínio encaminhe e-mails recebidos para este Worker)
+  async email(message, env) {
+    const forwardTo = env.FORWARD_TO_EMAIL || env.TO_EMAIL
+    if (!forwardTo) {
+      console.error('Nenhum endereço de destino (TO_EMAIL / FORWARD_TO_EMAIL) configurado para encaminhamento.')
+      message.setReject('Endereço de destino não configurado.')
+      return
+    }
+    await message.forward(forwardTo)
   },
 }
